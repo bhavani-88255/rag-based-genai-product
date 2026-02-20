@@ -1,0 +1,46 @@
+!pip install transformers
+!pip install sentence-transformers
+!pip install faiss-cpu
+
+
+from transformers import pipeline
+from sentence_transformers import SentenceTransformer
+import faiss
+import numpy as np
+
+
+generator = pipeline("text-generation", model="gpt2")
+
+
+embed_model = SentenceTransformer('all-MiniLM-L6-v2')
+
+
+documents = [
+    "Artificial Intelligence is transforming industries globally.",
+    "Disruptive behavior in organizations can slow down productivity.",
+    "The AI industry is growing rapidly and creating new job opportunities."
+]
+
+
+doc_embeddings = embed_model.encode(documents)
+
+
+dim = doc_embeddings.shape[1]
+index = faiss.IndexFlatL2(dim)
+index.add(np.array(doc_embeddings, dtype=np.float32))
+
+
+query = "what is artificial intelligence?"
+query_embedding = embed_model.encode([query])
+D, I = index.search(np.array(query_embedding, dtype=np.float32), k=1)  # k=1 top document
+
+retrieved_doc = documents[I[0][0]]
+print("=== Retrieved Document ===")
+print(retrieved_doc)
+
+
+rag_input = f"Question: {query}\nContext: {retrieved_doc}\nAnswer:"
+output = generator(rag_input, max_new_tokens=100)
+
+print("=== RAG Output ===")
+print(output[0]['generated_text'])
